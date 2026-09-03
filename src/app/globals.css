@@ -1,0 +1,216 @@
+@import "tailwindcss";
+
+@theme {
+  /* Palette du logo NoPact Records : noir, blanc au pinceau, rouge veuve.
+     `iris` est le nom historique du jeton d'accent — c'est le rouge de marque. */
+  --color-ground: #08080a;
+  --color-surface: #111114;
+  --color-raised: #1a1a1f;
+  --color-line: #26262c;
+  --color-line-strong: #3a3a43;
+  --color-ink: #f4f4f5;
+  --color-ink-2: #c4c4c9;
+  --color-muted: #96969e;
+  --color-faint: #6a6a73;
+  --color-iris: #e8110c;
+  --color-iris-soft: #ff2b24;
+  --color-iris-dim: #2a0908;
+  --color-ok: #34d399;
+  --color-ok-dim: #0f2a22;
+  --color-warn: #fbbf24;
+  --color-warn-dim: #2b2110;
+  --color-alert: #f87171;
+  --color-alert-dim: #2c1618;
+
+  --font-sans: Archivo, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+
+  --ease-out-quint: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer base {
+  :root {
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  html {
+    color-scheme: dark;
+    scroll-behavior: smooth;
+  }
+  body {
+    background: var(--color-ground);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    /* Halo violet très diffus, fixe : donne du relief sans charger la page. */
+    background-image: radial-gradient(
+      110vw 60vh at 50% -10%,
+      rgba(232, 17, 12, 0.10),
+      transparent 65%
+    );
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+  }
+  /* Les colonnes de montants doivent s'aligner a la virgule. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-family: var(--font-mono);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-iris);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  input,
+  select,
+  textarea {
+    background: rgba(10, 12, 17, 0.6);
+    border: 1px solid var(--color-line);
+    border-radius: 9px;
+    padding: 9px 12px;
+    font-size: 14px;
+    color: var(--color-ink);
+    width: 100%;
+    transition:
+      border-color 0.25s var(--ease),
+      background 0.25s var(--ease);
+  }
+  input:hover:not(:disabled),
+  select:hover:not(:disabled),
+  textarea:hover:not(:disabled) {
+    border-color: var(--color-line-strong);
+  }
+  input:focus,
+  select:focus,
+  textarea:focus {
+    border-color: var(--color-iris);
+    background: rgba(10, 12, 17, 0.9);
+  }
+  input:disabled,
+  select:disabled,
+  textarea:disabled {
+    opacity: 0.55;
+  }
+  label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+}
+
+@layer utilities {
+  /* --- entrées ------------------------------------------------------------ */
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes grow {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+
+  .rise {
+    animation: rise 0.55s var(--ease) both;
+  }
+  /* Cascade : les blocs arrivent l'un après l'autre, pas tous d'un coup. */
+  .stagger > * {
+    animation: rise 0.5s var(--ease) both;
+  }
+  .stagger > *:nth-child(1) { animation-delay: 0.02s; }
+  .stagger > *:nth-child(2) { animation-delay: 0.07s; }
+  .stagger > *:nth-child(3) { animation-delay: 0.12s; }
+  .stagger > *:nth-child(4) { animation-delay: 0.17s; }
+  .stagger > *:nth-child(5) { animation-delay: 0.22s; }
+  .stagger > *:nth-child(6) { animation-delay: 0.27s; }
+
+  .grow-x {
+    transform-origin: left;
+    animation: grow 0.7s var(--ease) both;
+  }
+
+  /* Révélé au scroll, piloté par IntersectionObserver. */
+  .reveal {
+    opacity: 0;
+    transform: translateY(16px);
+    transition:
+      opacity 0.6s var(--ease),
+      transform 0.6s var(--ease);
+  }
+  .reveal.seen {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* --- maquette d'accueil -------------------------------------------------- */
+
+  @keyframes heroRow {
+    from { opacity: 0; transform: translateX(-14px); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes heroBar {
+    from { transform: scaleY(0); }
+    to   { transform: scaleY(1); }
+  }
+  @keyframes heroSeg {
+    from { transform: scaleX(0); }
+    to   { transform: scaleX(1); }
+  }
+  .hero-row { animation: heroRow 0.6s var(--ease) both; }
+  .hero-bar { transform-origin: bottom; animation: heroBar 0.7s var(--ease) both; }
+  .hero-seg { transform-origin: left; animation: heroSeg 0.8s var(--ease) both; }
+  /* L'inclinaison est portée par un transform en ligne : aucune animation
+     ne doit toucher à cette propriété, elle l'écraserait. */
+
+  /* --- interactions ------------------------------------------------------- */
+
+  .lift {
+    transition:
+      border-color 0.3s var(--ease),
+      transform 0.3s var(--ease),
+      background 0.3s var(--ease);
+  }
+  .lift:hover {
+    border-color: var(--color-line-strong);
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
