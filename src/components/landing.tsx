@@ -31,7 +31,7 @@ export function Landing() {
       </header>
 
       {/* Calé à gauche, comme une page de produit — pas centré. */}
-      <section className="rise w-full max-w-[1240px] px-5 pt-10 pb-4 sm:px-8">
+      <section className="rise mx-auto max-w-6xl px-6 pt-10 pb-4 sm:px-10">
         <h1 className="max-w-3xl text-5xl leading-[1.03] font-semibold tracking-tight sm:text-6xl lg:text-7xl">
           L&apos;argent de ta musique,
           <br />
@@ -55,11 +55,11 @@ export function Landing() {
       </section>
 
       {/* La maquette a sa propre zone : elle ne passe plus sous le bouton. */}
-      <div className="relative mt-10 w-full max-w-[1240px] px-5 sm:px-8">
+      <div className="relative mt-10 px-6 sm:px-10">
         <HeroMock />
       </div>
 
-      <section className="stagger mt-4 grid w-full max-w-[1240px] gap-4 px-5 pb-20 sm:grid-cols-3 sm:px-8">
+      <section className="stagger mx-auto mt-4 grid max-w-6xl gap-4 px-6 pb-20 sm:grid-cols-3 sm:px-10">
         {POINTS.map((p) => (
           <div
             key={p.t}

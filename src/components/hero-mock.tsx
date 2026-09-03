@@ -63,7 +63,7 @@ export function HeroMock() {
   return (
     <div
       ref={wrap}
-      className="pointer-events-none relative mt-4 w-full max-w-[1040px] select-none"
+      className="pointer-events-none relative mx-auto mt-4 w-full max-w-[1040px] select-none"
       style={{ perspective: "2400px" }}
       aria-hidden="true"
     >
