@@ -260,16 +260,7 @@ export default async function AccordPage() {
             </div>
 
             {/* 2. L'argent du label. */}
-            <div className="grid gap-4 border-t border-line pt-5 sm:grid-cols-3">
-              <Field label="Le label investit (€)">
-                <input
-                  name="investment"
-                  type="number"
-                  min="0"
-                  step="100"
-                  defaultValue={cfg.investment}
-                />
-              </Field>
+            <div className="grid gap-4 border-t border-line pt-5 sm:grid-cols-2">
               <Field label="Il se rembourse">
                 <select name="recoupModel" defaultValue={cfg.recoupModel}>
                   {MODELS.map((m) => (
