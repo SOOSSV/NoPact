@@ -40,10 +40,7 @@ export default async function RootLayout({
         {/* Connecté : colonne cadrée. Visiteur : la page gère son propre plein écran. */}
         <main
           className={
-            // Calé à gauche, sans mx-auto : la colonne suit le logo au lieu
-            // de flotter au centre. Bornée pour qu'un libellé et sa valeur
-            // restent lisibles d'un seul regard.
-            ctx ? "w-full max-w-[1240px] px-5 py-8 sm:px-8 sm:py-10" : undefined
+            ctx ? "mx-auto w-full max-w-[1240px] px-5 py-8 sm:px-8 sm:py-10" : undefined
           }
         >
           {children}
