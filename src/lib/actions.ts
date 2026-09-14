@@ -106,12 +106,13 @@ export async function signIn(
       httpOnly: true,
       secure: process.env.NODE_ENV === "production"
     });
-
-    refresh();
-    redirect("/");
   } catch (err) {
     return fail(`Erreur: ${err instanceof Error ? err.message : "Connexion impossible"}`);
   }
+
+  // Hors du try : redirect() lève une exception que le catch avalait.
+  refresh();
+  redirect("/");
 }
 
 /**
