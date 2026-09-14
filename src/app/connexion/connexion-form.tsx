@@ -12,12 +12,12 @@ export function ConnexionForm() {
   );
 
   return (
-    <Card>
-      <form action={action} className="flex flex-col gap-4">
+    <Card className="space-y-5">
+      <form action={action} className="space-y-5">
         <Field label="Identifiant">
           <input
             name="handle"
-            placeholder="soossv"
+            placeholder="daniel"
             autoCapitalize="none"
             autoCorrect="off"
             autoFocus
@@ -29,25 +29,30 @@ export function ConnexionForm() {
           <input
             name="password"
             type="text"
-            placeholder="000000"
+            placeholder="••••••"
             maxLength="6"
             pattern="\d{6}"
             required
+            className="text-center text-[22px] font-bold tracking-[0.5em]"
           />
         </Field>
 
-        {state?.error ? <Alert>{state.error}</Alert> : null}
+        {state?.error && (
+          <div
+            className="rounded-lg border px-4 py-3 text-sm"
+            style={{
+              background: "rgba(220,38,38,0.08)",
+              borderColor: "rgba(220,38,38,0.3)",
+              color: "#991B1B",
+            }}
+          >
+            {state.error}
+          </div>
+        )}
 
-        <div className="pt-1">
-          <Button type="submit" disabled={pending}>
-            {pending ? "…" : "Entrer"}
-          </Button>
-        </div>
-
-        <p className="text-[13px] text-faint">
-          Pas de compte ? C&apos;est l&apos;artiste ou un manager qui te
-          l&apos;ouvre et te donne ton identifiant.
-        </p>
+        <Button type="submit" disabled={pending} className="w-full">
+          {pending ? "Connexion…" : "Se connecter"}
+        </Button>
       </form>
     </Card>
   );
