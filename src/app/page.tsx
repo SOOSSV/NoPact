@@ -18,7 +18,7 @@ export default async function Dashboard() {
   }
 
   const { space, members } = ctx;
-  const canInvite = can.manageRules(ctx.me.role);
+  const canInvite = can.invite(ctx.me.role);
   const pending = canInvite ? await getPendingInvitations(space.id) : [];
 
   return (

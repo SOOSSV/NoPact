@@ -23,6 +23,7 @@ export const can = {
   dispute: () => true,
   requestAdvance: (r: string) => r === "artiste",
   manageRules: (r: string) => r === "artiste" || r === "manager",
+  invite: (r: string) => r === "artiste" || r === "label",
 };
 
 export type Member = Membership & { name: string; handle: string };

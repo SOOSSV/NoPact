@@ -178,8 +178,8 @@ export async function inviteMember(
 ): Promise<ActionState> {
   const ctx = await context();
   if (!ctx) return fail("Session expirée. Reconnecte-toi.");
-  if (!can.manageRules(ctx.me.role)) {
-    return fail("Seuls l'artiste et les managers invitent quelqu'un.");
+  if (!can.invite(ctx.me.role)) {
+    return fail("Seuls l'artiste et le label invitent quelqu'un.");
   }
 
   const name = text(formData, "name");
