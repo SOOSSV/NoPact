@@ -9,13 +9,9 @@ import type { Space, SpaceRole } from "@/lib/types";
 
 const LINKS = [
   { href: "/", label: "Tableau de bord" },
-  { href: "/revenus", label: "Revenus" },
-  { href: "/depenses", label: "Dépenses" },
-  { href: "/royalties", label: "Royalties" },
-  { href: "/journal", label: "Journal" },
   { href: "/accord", label: "Accord" },
   { href: "/contrat", label: "Contrat" },
-  { href: "/reglages", label: "Réglages" },
+  { href: "/information", label: "Information" },
 ];
 
 export function Nav({
