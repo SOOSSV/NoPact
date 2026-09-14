@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { cache } from "react";
 import { cookies } from "next/headers";
-import { getUserById, getLabelById, getLabelMembers, getLabelAgreements } from "./db";
+import { getUserById, getUserLabelIds, getLabelById, getLabelMembers, getLabelAgreements } from "./db";
 import type { User, Label, Membership } from "./types";
 
 export const SPACE_COOKIE = "nopact_space";
@@ -53,13 +53,13 @@ export async function context(): Promise<Context | null> {
   const user = await currentUser();
   if (!user) return null;
 
-  // Pour MVP : charger le premier label où l'utilisateur est membre
-  const jar = await cookies();
-  const wantedLabelId = jar.get(SPACE_COOKIE)?.value;
+  const labelIds = await getUserLabelIds(user.id);
+  if (labelIds.length === 0) return null;
 
-  // TODO: implémenter getLabelsByUserId
-  // Pour maintenant, on va charger le premier label connu
-  const labelId = wantedLabelId || "763c5e99-8996-416a-a902-2212d489ac96"; // SOOSSV label ID
+  // Un vieux cookie d'espace (ancienne version du site) ne doit pas bloquer l'accès.
+  const jar = await cookies();
+  const wanted = jar.get(SPACE_COOKIE)?.value;
+  const labelId = wanted && labelIds.includes(wanted) ? wanted : labelIds[0];
   const label = await getLabelById(labelId);
   if (!label) return null;
 

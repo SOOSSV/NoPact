@@ -95,6 +95,16 @@ export async function getMembership(
   return data ? { ...data, share: 0 } : null;
 }
 
+export async function getUserLabelIds(userId: string): Promise<string[]> {
+  const db = await supabase();
+  const { data } = await db
+    .from("memberships")
+    .select("label_id")
+    .eq("user_id", userId)
+    .order("joined_at");
+  return (data || []).map((m: any) => m.label_id);
+}
+
 export async function getLabelMembers(labelId: string): Promise<MembershipView[]> {
   const db = await supabase();
   const { data } = await db
