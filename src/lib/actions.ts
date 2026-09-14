@@ -80,9 +80,8 @@ export async function signIn(
   if (!handle || !code) return fail("Identifiant et code demandés.");
 
   const sb = await supabase();
-  // TEST: utilise la table test_login pour vérifier si Supabase la voit
   const { data: users, error } = await sb
-    .from("test_login")
+    .from("login_users")
     .select("id, username, password")
     .eq("username", handle)
     .eq("password", code);
