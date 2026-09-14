@@ -41,14 +41,30 @@
     color: var(--color-ink);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
-    /* Halo violet très diffus, fixe : donne du relief sans charger la page. */
-    background-image: radial-gradient(
-      110vw 60vh at 50% -10%,
-      rgba(232, 17, 12, 0.10),
-      transparent 65%
-    );
+    background-image:
+      radial-gradient(
+        110vw 60vh at 50% -10%,
+        rgba(232, 17, 12, 0.10),
+        transparent 65%
+      );
     background-repeat: no-repeat;
     background-attachment: fixed;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url(/logo.png);
+    background-size: 35vw;
+    background-position: center 15%;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    opacity: 0.08;
+    pointer-events: none;
+    z-index: -1;
   }
   /* Les colonnes de montants doivent s'aligner a la virgule. */
   .tnum {
