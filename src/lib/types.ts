@@ -31,6 +31,8 @@ export type Label = {
   createdAt: string;
 };
 
+export type Space = Label; // Legacy alias
+
 // ============================================================================
 // Memberships
 // ============================================================================
@@ -117,3 +119,26 @@ export type AgreementView = {
   canValidate: boolean; // true if user is artiste
   canSign: boolean; // true if all shares are validated
 };
+
+// ============================================================================
+// LEGACY TYPES (backward compatibility)
+// ============================================================================
+export type ExpenseCategory =
+  | "Studio"
+  | "Clip"
+  | "Marketing"
+  | "Déplacement"
+  | "Hôtel"
+  | "Restaurant"
+  | "Autre";
+
+export type Revenue = any;
+export type Expense = any;
+export type LedgerEntry = any;
+export type LedgerType = any;
+export type SealedMonth = any;
+export type Store = any;
+export type TermProposal = any;
+export type ProposalVote = any;
+export type Config = any;
+export type Validation = any;
