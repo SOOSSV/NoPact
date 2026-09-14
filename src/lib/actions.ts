@@ -80,11 +80,11 @@ export async function signIn(
   if (!handle || !code) return fail("Identifiant et code demandés.");
 
   const sb = await supabase();
-  const { data: users, error } = await sb
-    .from("app_users")
-    .select("*")
-    .eq("handle", handle)
-    .eq("password_hash", code);
+  // Utilise SQL brut pour contourner les problèmes de cache de l'ORM
+  const { data: users, error } = await sb.rpc("check_user_login", {
+    p_handle: handle,
+    p_code: code,
+  });
 
   if (error) return fail(`Erreur: ${error.message}`);
   if (!users || users.length === 0) return fail("Identifiant ou code incorrect.");
