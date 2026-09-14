@@ -80,8 +80,7 @@ export async function signIn(
   if (!handle || !code) return fail("Identifiant et code demandés.");
 
   const sb = await supabase();
-  // Utilise SQL brut pour contourner les problèmes de cache de l'ORM
-  const { data: users, error } = await sb.rpc("check_user_login", {
+  const { data: users, error } = await sb.rpc("login_user", {
     p_handle: handle,
     p_code: code,
   });

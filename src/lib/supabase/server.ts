@@ -5,11 +5,12 @@ const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
 
 /**
- * Client Supabase côté serveur (même approche qu'ATLETIC)
+ * Client Supabase côté serveur
  */
 export async function supabase() {
   const jar = await cookies();
   return createServerClient(URL, KEY, {
+    db: { schema: "nopact" },
     cookies: {
       getAll: () => jar.getAll(),
       setAll: (list) => {
