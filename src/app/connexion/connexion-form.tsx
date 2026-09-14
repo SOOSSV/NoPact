@@ -25,12 +25,13 @@ export function ConnexionForm() {
           />
         </Field>
 
-        <Field label="Mot de passe">
+        <Field label="Code (6 chiffres)">
           <input
             name="password"
-            type="password"
-            placeholder="••••••••"
-            autoComplete="current-password"
+            type="text"
+            placeholder="000000"
+            maxLength="6"
+            pattern="\d{6}"
             required
           />
         </Field>
