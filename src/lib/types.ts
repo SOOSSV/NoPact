@@ -4,6 +4,7 @@
  */
 
 export type Role = "artiste" | "manager" | "producteur" | "label";
+export type SpaceRole = Role; // Backward compatibility
 export type RecoupModel = "brut" | "part_label" | "plancher";
 export type AgreementStatus = "en_attente" | "validee" | "signee" | "archivee";
 
@@ -16,6 +17,7 @@ export type User = {
   email: string;
   name: string;
   createdAt: string;
+  mustChange?: boolean; // Legacy
 };
 
 // ============================================================================
@@ -38,6 +40,7 @@ export type Membership = {
   userId: string;
   role: Role;
   joinedAt: string;
+  share: number; // Legacy: % is now in Shares table (default 0)
 };
 
 export type MembershipView = Membership & {

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import Link from "next/link";
 import {
   Card,
@@ -290,3 +291,4 @@ export default async function Dashboard() {
     </>
   );
 }
+

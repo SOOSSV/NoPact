@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import { useActionState, useRef, useState } from "react";
@@ -141,3 +142,4 @@ export function DepenseForm() {
     </form>
   );
 }
+

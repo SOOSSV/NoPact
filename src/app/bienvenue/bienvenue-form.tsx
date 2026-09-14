@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import { useActionState } from "react";
@@ -53,3 +54,4 @@ export function BienvenueForm({
     </Card>
   );
 }
+

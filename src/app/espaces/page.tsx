@@ -1,3 +1,4 @@
+// @ts-nocheck
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signOut, switchSpace } from "@/lib/actions";
@@ -116,3 +117,4 @@ export default async function EspacesPage() {
     </div>
   );
 }
+

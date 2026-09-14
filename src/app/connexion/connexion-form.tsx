@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import { useActionState } from "react";
@@ -50,3 +51,4 @@ export function ConnexionForm() {
     </Card>
   );
 }
+

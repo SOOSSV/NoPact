@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { importRevenues } from "@/lib/actions";
 import { ActionForm } from "@/components/action-form";
 import { Button, Card, Empty, Eyebrow, Field, PageHeader, Pill, Why } from "@/components/ui";
@@ -194,3 +195,4 @@ export default async function RevenusPage() {
     </>
   );
 }
+

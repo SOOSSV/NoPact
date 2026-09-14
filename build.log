@@ -1,0 +1,29 @@
+﻿
+> nopact@0.1.0 build
+> next build
+
+▲ Next.js 16.2.4 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 2.7s
+  Running TypeScript ...
+node.exe : Failed to type check.
+Au caractère Ligne:1 : 1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Failed to type check.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+./src/app/accord/page.tsx:34:41
+Type error: Parameter 'v' implicitly has an 'any' type.
+
+  [90m32 |[0m   [36mconst[0m jamaisFixe = total === [35m0[0m;
+  [90m33 |[0m
+[31m[1m>[0m [90m34 |[0m   [36mconst[0m monVote = proposal?.votes.find((v) => v.voter === user.id);
+  [90m   |[0m                                         [31m[1m^[0m
+  [90m35 |[0m   [36mconst[0m roleDe = (id: string) => members.find((m) => m.userId === id)?.role;
+  [90m36 |[0m   [36mconst[0m artisteOk = proposal?.votes.some(
+  [90m37 |[0m     (v) => v.accept && roleDe(v.voter) === [32m"artiste"[0m,
+Next.js build worker exited with code: 1 and signal: null

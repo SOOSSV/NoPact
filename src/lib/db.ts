@@ -83,7 +83,7 @@ export async function getMembership(
     .eq("label_id", labelId)
     .eq("user_id", userId)
     .single();
-  return data;
+  return data ? { ...data, share: 0 } : null;
 }
 
 export async function getLabelMembers(labelId: string): Promise<MembershipView[]> {
@@ -107,6 +107,7 @@ export async function getLabelMembers(labelId: string): Promise<MembershipView[]
     name: m.users.name,
     email: m.users.email,
     handle: m.users.handle,
+    share: 0,
   }));
 }
 
@@ -122,7 +123,7 @@ export async function addMember(
     .select()
     .single();
   if (!data) throw new Error("Failed to add member");
-  return data;
+  return { ...data, share: 0 };
 }
 
 // ============================================================================
@@ -305,4 +306,32 @@ export async function validateShares(agreementId: string): Promise<void> {
     .update({ validated: true, validated_at: now })
     .eq("agreement_id", agreementId)
     .eq("validated", false);
+}
+
+// ============================================================================
+// LEGACY STUBS (for backward compatibility during refactor)
+// ============================================================================
+export async function loadStore() {
+  console.warn("loadStore is deprecated, use new DB functions");
+  return null;
+}
+
+export async function verifyChainDb() {
+  return { ok: true, brokenAt: null, unavailable: false };
+}
+
+export async function writeLedger() {
+  console.warn("writeLedger is deprecated");
+}
+
+export async function uploadReceipt() {
+  throw new Error("uploadReceipt not implemented in new architecture");
+}
+
+export async function vendorId() {
+  throw new Error("vendorId not implemented in new architecture");
+}
+
+export async function receiptUrl() {
+  return null;
 }

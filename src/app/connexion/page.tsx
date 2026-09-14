@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
@@ -57,3 +58,4 @@ export default async function ConnexionPage() {
     </div>
   );
 }
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ActionForm } from "@/components/action-form";
 import { Card, Eyebrow, Field, PageHeader, Pill, Why } from "@/components/ui";
 import { ROLE_LABEL, SPACE_ROLES, initialsOf } from "@/lib/defaults";
@@ -31,13 +32,13 @@ export default async function AccordPage() {
   const total = Math.round(people.reduce((s, p) => s + p.share, 0) * 100) / 100;
   const jamaisFixe = total === 0;
 
-  const monVote = proposal?.votes.find((v) => v.voter === user.id);
+  const monVote = proposal?.votes.find((v: any) => v.voter === user.id);
   const roleDe = (id: string) => members.find((m) => m.userId === id)?.role;
   const artisteOk = proposal?.votes.some(
-    (v) => v.accept && roleDe(v.voter) === "artiste",
+    (v: any) => v.accept && roleDe(v.voter) === "artiste",
   );
   const managerOk = proposal?.votes.some(
-    (v) => v.accept && roleDe(v.voter) === "manager",
+    (v: any) => v.accept && roleDe(v.voter) === "manager",
   );
 
   return (

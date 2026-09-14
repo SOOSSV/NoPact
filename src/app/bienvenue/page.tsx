@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { redirect } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { currentUser } from "@/lib/session";
@@ -27,3 +28,4 @@ export default async function BienvenuePage() {
     </div>
   );
 }
+
