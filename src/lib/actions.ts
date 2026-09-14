@@ -79,15 +79,15 @@ export async function signIn(
   const code = String(formData.get("password") ?? "").trim();
   if (!handle || !code) return fail("Identifiant et code demandés.");
 
-  // Bypass Supabase cache issue - use direct SQL query
+  // Bypass Supabase cache issue - use direct REST API with Service Role key
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
     const response = await fetch(`${supabaseUrl}/rest/v1/login_users?username=eq.${encodeURIComponent(handle)}&password=eq.${encodeURIComponent(code)}`, {
       headers: {
-        "apikey": supabaseKey,
-        "Authorization": `Bearer ${supabaseKey}`,
+        "apikey": serviceRoleKey,
+        "Authorization": `Bearer ${serviceRoleKey}`,
       },
     });
 
