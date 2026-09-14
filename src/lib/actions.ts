@@ -32,8 +32,8 @@ const CATEGORIES: ExpenseCategory[] = [
 ];
 
 const PAGES = [
-  "/", "/revenus", "/depenses", "/royalties", "/journal", "/contrat",
-  "/reglages", "/accord", "/espaces", "/connexion", "/bienvenue",
+  "/", "/", "/", "/royalties", "/journal", "/contrat",
+  "/information", "/accord", "/espaces", "/connexion", "/bienvenue",
 ];
 
 function refresh() {
@@ -174,7 +174,7 @@ export async function createSpace(
   const jar = await cookies();
   jar.set(SPACE_COOKIE, space.data.id, { path: "/", maxAge: 60 * 60 * 24 * 365 });
   refresh();
-  redirect("/reglages");
+  redirect("/information");
 }
 
 export async function switchSpace(formData: FormData) {
@@ -719,3 +719,4 @@ export async function readReceipt(
 
   return { lecture: lu.data };
 }
+
