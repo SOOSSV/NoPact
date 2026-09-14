@@ -1,32 +1,33 @@
-import { ImageResponse } from "next/og";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 export const size = {
   width: 32,
   height: 32,
 };
-export const contentType = "image/png";
+export const contentType = "image/jpeg";
 
 export default function Icon() {
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          fontSize: 24,
-          background: "linear-gradient(135deg, #3b82f6, #2563eb)",
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          borderRadius: 8,
-          color: "white",
-          fontWeight: "bold",
-          fontFamily: "system-ui",
-        }}
-      >
-        N
-      </div>
-    ),
-    { ...size }
-  );
+  try {
+    const logoPath = join(process.cwd(), "public", "logo.png");
+    const logoBuffer = readFileSync(logoPath);
+    return new Response(logoBuffer, {
+      headers: {
+        "Content-Type": "image/png",
+      },
+    });
+  } catch (e) {
+    // Fallback if logo not found
+    return new Response(
+      Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+        "base64"
+      ),
+      {
+        headers: {
+          "Content-Type": "image/png",
+        },
+      }
+    );
+  }
 }
