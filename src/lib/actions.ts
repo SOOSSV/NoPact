@@ -79,29 +79,39 @@ export async function signIn(
   const code = String(formData.get("password") ?? "").trim();
   if (!handle || !code) return fail("Identifiant et code demandés.");
 
-  const sb = await supabase();
-  const { data: users, error } = await sb
-    .from("login_users")
-    .select("id, username, password")
-    .eq("username", handle)
-    .eq("password", code);
+  // Bypass Supabase cache issue - use direct SQL query
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
 
-  if (error) return fail(`Erreur: ${error.message}`);
-  if (!users || users.length === 0) return fail("Identifiant ou code incorrect.");
+    const response = await fetch(`${supabaseUrl}/rest/v1/login_users?username=eq.${encodeURIComponent(handle)}&password=eq.${encodeURIComponent(code)}`, {
+      headers: {
+        "apikey": supabaseKey,
+        "Authorization": `Bearer ${supabaseKey}`,
+      },
+    });
 
-  const user = users[0];
+    if (!response.ok) return fail("Erreur serveur.");
 
-  // Crée une session en stockant l'ID utilisateur dans un cookie
-  const jar = await cookies();
-  jar.set(USER_COOKIE, user.id, {
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7, // 7 days
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production"
-  });
+    const users = await response.json();
+    if (!Array.isArray(users) || users.length === 0) return fail("Identifiant ou code incorrect.");
 
-  refresh();
-  redirect("/");
+    const user = users[0];
+
+    // Crée une session
+    const jar = await cookies();
+    jar.set(USER_COOKIE, user.id, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production"
+    });
+
+    refresh();
+    redirect("/");
+  } catch (err) {
+    return fail(`Erreur: ${err instanceof Error ? err.message : "Connexion impossible"}`);
+  }
 }
 
 /**
