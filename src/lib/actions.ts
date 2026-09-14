@@ -86,7 +86,9 @@ export async function signIn(
     .eq("handle", handle)
     .single();
 
-  if (error || !user) return fail("Identifiant ou code incorrect.");
+  console.error("DEBUG signIn:", { handle, error: error?.message, user: user?.handle });
+
+  if (error || !user) return fail(`Identifiant ou code incorrect. ${error?.message || ""}`);
   if (user.password_hash !== code) return fail("Identifiant ou code incorrect.");
 
   // Crée une session en stockant l'ID utilisateur dans un cookie
