@@ -80,10 +80,12 @@ export async function signIn(
   if (!handle || !code) return fail("Identifiant et code demandés.");
 
   const sb = await supabase();
-  const { data: users, error } = await sb.rpc("login_user", {
-    p_handle: handle,
-    p_code: code,
-  });
+  // Interroge directement la table users
+  const { data: users, error } = await sb
+    .from("users")
+    .select("id, handle, email, name")
+    .eq("handle", handle)
+    .eq("password_hash", code);
 
   if (error) return fail(`Erreur: ${error.message}`);
   if (!users || users.length === 0) return fail("Identifiant ou code incorrect.");
