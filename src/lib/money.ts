@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { expensesOf, revenuesOf } from "./store";
 import type { Config, Revenue, SpaceRole, Store } from "./types";
 

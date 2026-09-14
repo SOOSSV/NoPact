@@ -1,0 +1,30 @@
+﻿
+> nopact@0.1.0 build
+> next build
+
+▲ Next.js 16.2.4 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 2.8s
+  Running TypeScript ...
+node.exe : Failed to type check.
+Au caractère Ligne:1 : 1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Failed to type check.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+./src/lib/money.ts:111:54
+Type error: Parameter 'r' implicitly has an 'any' type.
+
+  [90m109 |[0m [90m/** Périodes présentes dans les revenus, de la plus récente à la plus ancienne. */[0m
+  [90m110 |[0m [36mexport[0m [36mfunction[0m periods(store: [33mStore[0m, spaceId: string) {
+[31m[1m>[0m [90m111 |[0m   [36mreturn[0m [...[36mnew[0m [33mSet[0m(revenuesOf(store, spaceId).map((r) => 
+r.period))]
+  [90m    |[0m                                                      [31m[1m^[0m
+  [90m112 |[0m     .sort()
+  [90m113 |[0m     .reverse();
+  [90m114 |[0m }
+Next.js build worker exited with code: 1 and signal: null
