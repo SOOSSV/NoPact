@@ -75,18 +75,18 @@ export async function signIn(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const handle = text(formData, "handle").toLowerCase();
-  const code = String(formData.get("password") ?? "");
+  const handle = text(formData, "handle").toLowerCase().trim();
+  const code = String(formData.get("password") ?? "").trim();
   if (!handle || !code) return fail("Identifiant et code demandés.");
 
   const sb = await supabase();
-  const { data: user } = await sb
+  const { data: user, error } = await sb
     .from("users")
     .select()
     .eq("handle", handle)
     .single();
 
-  if (!user) return fail("Identifiant ou code incorrect.");
+  if (error || !user) return fail("Identifiant ou code incorrect.");
   if (user.password_hash !== code) return fail("Identifiant ou code incorrect.");
 
   // Crée une session en stockant l'ID utilisateur dans un cookie
