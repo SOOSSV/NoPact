@@ -5,12 +5,11 @@ const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
 
 /**
- * Client Supabase côté serveur, utilise le schéma public.
+ * Client Supabase côté serveur (même approche qu'ATLETIC)
  */
 export async function supabase() {
   const jar = await cookies();
   return createServerClient(URL, KEY, {
-    db: { schema: "public" },
     cookies: {
       getAll: () => jar.getAll(),
       setAll: (list) => {
