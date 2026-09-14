@@ -1,25 +1,11 @@
 // @ts-nocheck
 import { cache } from "react";
 import { cookies } from "next/headers";
-import { loadStore } from "./db";
-import {
-  invitationsOf,
-  membersOf,
-  membershipIn,
-  pendingProposal,
-  spacesOfUser,
-} from "./store";
-import type {
-  Invitation,
-  Membership,
-  Space,
-  SpaceRole,
-  Store,
-  TermProposal,
-  User,
-} from "./types";
+import { getUserById, getLabelById, getLabelMembers, getLabelAgreements } from "./db";
+import type { User, Label, Membership } from "./types";
 
 export const SPACE_COOKIE = "nopact_space";
+export const USER_COOKIE = "nopact_user";
 
 /** La base répond mais refuse : on le dit, on ne redirige pas en boucle. */
 export class DatabaseUnavailable extends Error {
@@ -29,82 +15,63 @@ export class DatabaseUnavailable extends Error {
   }
 }
 
-/**
- * Droits par rôle, dans un espace donné. Le label saisit, les managers
- * contrôlent, tout le monde conteste. Personne ne modifie ni ne supprime :
- * ces actions n'existent nulle part, ni ici ni en base.
- */
 export const can = {
-  importRevenue: (r: SpaceRole) => r === "label",
-  createExpense: (r: SpaceRole) => r === "label",
-  validate: (r: SpaceRole) => r === "manager",
-  seal: (r: SpaceRole) => r === "label",
+  importRevenue: (r: string) => r === "label",
+  createExpense: (r: string) => r === "label",
+  validate: (r: string) => r === "manager",
+  seal: (r: string) => r === "label",
   dispute: () => true,
-  requestAdvance: (r: SpaceRole) => r === "artiste",
-  /** Les règles se décident côté artiste, pas côté payeur. */
-  manageRules: (r: SpaceRole) => r === "artiste" || r === "manager",
+  requestAdvance: (r: string) => r === "artiste",
+  manageRules: (r: string) => r === "artiste" || r === "manager",
 };
 
 export type Member = Membership & { name: string; handle: string };
 
 export type Context = {
-  dbError?: string;
-  store: Store;
   user: User;
-  space: Space;
+  label: Label;
   members: Member[];
-  invitations: Invitation[];
-  proposal: TermProposal | null;
   me: Member;
-  spaces: Space[];
 };
 
-/** Une seule lecture de la base par requête, même si plusieurs pages la demandent. */
-const load = cache(loadStore);
+const getUserIdFromCookie = cache(async (): Promise<string | null> => {
+  const jar = await cookies();
+  return jar.get(USER_COOKIE)?.value ?? null;
+});
 
 export async function currentUser(): Promise<User | null> {
-  const loaded = await load();
-  if (!loaded) return null;
-  if (loaded.dbError) throw new DatabaseUnavailable(loaded.dbError);
-  return loaded.store.users.find((u) => u.id === loaded.userId) ?? null;
+  const userId = await getUserIdFromCookie();
+  if (!userId) return null;
+  return await getUserById(userId);
 }
 
 /**
- * Résout compte + espace courant. Renvoie null si l'un des deux manque :
+ * Résout compte + label courant. Renvoie null si l'un des deux manque :
  * les pages redirigent alors, elles ne devinent jamais.
  */
 export async function context(): Promise<Context | null> {
-  const loaded = await load();
-  if (!loaded) return null;
-  const { store, userId, dbError } = loaded;
-  if (dbError) throw new DatabaseUnavailable(dbError);
-
-  const user = store.users.find((u) => u.id === userId);
+  const user = await currentUser();
   if (!user) return null;
 
-  const spaces = spacesOfUser(store, userId);
-  if (spaces.length === 0) return null;
-
+  // Pour MVP : charger le premier label où l'utilisateur est membre
   const jar = await cookies();
-  const wanted = jar.get(SPACE_COOKIE)?.value;
-  // On ne sert un espace que si l'utilisateur y est membre.
-  const space = (wanted && spaces.find((s) => s.id === wanted)) || spaces[0];
+  const wantedLabelId = jar.get(SPACE_COOKIE)?.value;
 
-  const membership = membershipIn(store, space.id, userId);
-  if (!membership) return null;
+  // TODO: implémenter getLabelsByUserId
+  // Pour maintenant, on va charger le premier label connu
+  const labelId = wantedLabelId || "763c5e99-8996-416a-a902-2212d489ac96"; // SOOSSV label ID
+  const label = await getLabelById(labelId);
+  if (!label) return null;
 
-  const members = membersOf(store, space.id);
-  const me = members.find((m) => m.userId === userId)!;
+  const members = await getLabelMembers(labelId);
+  const me = members.find((m) => m.userId === user.id);
+  if (!me) return null;
 
   return {
-    store,
     user,
-    space,
+    label,
     members,
-    invitations: invitationsOf(store, space.id),
-    proposal: pendingProposal(store, space.id),
     me,
-    spaces,
   };
 }
 

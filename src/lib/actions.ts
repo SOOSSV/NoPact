@@ -7,7 +7,7 @@ import { cookies } from "next/headers";
 import { ROLE_LABEL } from "./defaults";
 import { eur, monthLabel } from "./money";
 import { parseRules } from "./settings";
-import { SPACE_COOKIE, can, context } from "./session";
+import { SPACE_COOKIE, USER_COOKIE, can, context } from "./session";
 import { membersOf } from "./store";
 import { supabase } from "./supabase/server";
 import { uploadReceipt, vendorId, verifyChainDb, writeLedger } from "./db";
@@ -76,15 +76,27 @@ export async function signIn(
   formData: FormData,
 ): Promise<ActionState> {
   const handle = text(formData, "handle").toLowerCase();
-  const password = String(formData.get("password") ?? "");
-  if (!handle || !password) return fail("Identifiant et mot de passe demandés.");
+  const code = String(formData.get("password") ?? "");
+  if (!handle || !code) return fail("Identifiant et code demandés.");
 
   const sb = await supabase();
-  const { error } = await sb.auth.signInWithPassword({
-    email: asEmail(handle),
-    password,
+  const { data: user } = await sb
+    .from("users")
+    .select()
+    .eq("handle", handle)
+    .single();
+
+  if (!user) return fail("Identifiant ou code incorrect.");
+  if (user.password_hash !== code) return fail("Identifiant ou code incorrect.");
+
+  // Crée une session en stockant l'ID utilisateur dans un cookie
+  const jar = await cookies();
+  jar.set(USER_COOKIE, user.id, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7, // 7 days
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production"
   });
-  if (error) return fail(readable(error.message));
 
   refresh();
   redirect("/");
@@ -125,9 +137,8 @@ export async function finishSetup(
 }
 
 export async function signOut() {
-  const sb = await supabase();
-  await sb.auth.signOut();
   const jar = await cookies();
+  jar.delete(USER_COOKIE);
   jar.delete(SPACE_COOKIE);
   refresh();
   redirect("/connexion");
