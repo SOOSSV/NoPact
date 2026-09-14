@@ -5,13 +5,12 @@ const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
 
 /**
- * Client Supabase côté serveur, cadré sur le schéma `nopact`.
- * Le schéma `public` de la boutique n'est jamais accessible d'ici.
+ * Client Supabase côté serveur, utilise le schéma public.
  */
 export async function supabase() {
   const jar = await cookies();
   return createServerClient(URL, KEY, {
-    db: { schema: "nopact" },
+    db: { schema: "public" },
     cookies: {
       getAll: () => jar.getAll(),
       setAll: (list) => {
