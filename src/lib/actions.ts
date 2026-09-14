@@ -81,7 +81,7 @@ export async function signIn(
 
   const sb = await supabase();
   const { data: user, error } = await sb
-    .from("users")
+    .from("nopact.users")
     .select()
     .eq("handle", handle)
     .single();
