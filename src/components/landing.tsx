@@ -26,7 +26,7 @@ export function Landing() {
           href="/connexion"
           className="rounded-lg border border-line px-4 py-2 text-sm text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
         >
-          Entrer
+          Se connecter
         </Link>
       </header>
 
