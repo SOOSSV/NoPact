@@ -80,15 +80,16 @@ export async function signIn(
   if (!handle || !code) return fail("Identifiant et code demandés.");
 
   const sb = await supabase();
-  const { data: result, error } = await sb.rpc("check_login", {
-    p_handle: handle,
-    p_code: code,
-  });
+  const { data: users, error } = await sb
+    .from("app_users")
+    .select("*")
+    .eq("handle", handle)
+    .eq("password_hash", code);
 
-  if (error) return fail(`Erreur serveur: ${error.message}`);
-  if (!result || result.length === 0) return fail("Identifiant ou code incorrect.");
+  if (error) return fail(`Erreur: ${error.message}`);
+  if (!users || users.length === 0) return fail("Identifiant ou code incorrect.");
 
-  const user = result[0];
+  const user = users[0];
 
   // Crée une session en stockant l'ID utilisateur dans un cookie
   const jar = await cookies();

@@ -17,7 +17,7 @@ import type {
 export async function getUserByHandle(handle: string): Promise<User | null> {
   const db = await supabase();
   const { data } = await db
-    .from("users")
+    .from("app_users")
     .select()
     .eq("handle", handle)
     .single();
@@ -26,7 +26,7 @@ export async function getUserByHandle(handle: string): Promise<User | null> {
 
 export async function getUserById(id: string): Promise<User | null> {
   const db = await supabase();
-  const { data } = await db.from("users").select().eq("id", id).single();
+  const { data } = await db.from("app_users").select().eq("id", id).single();
   return data;
 }
 
@@ -38,7 +38,7 @@ export async function createUser(
 ): Promise<User> {
   const db = await supabase();
   const { data } = await db
-    .from("users")
+    .from("app_users")
     .insert({ email, name, handle, password_hash: passwordHash })
     .select()
     .single();
