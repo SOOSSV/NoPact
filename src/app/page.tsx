@@ -57,7 +57,7 @@ export default async function Dashboard() {
             </div>
           ))}
         </div>
-        {canInvite ? <InviteBox pending={pending} labelName={space.name} /> : null}
+        {canInvite ? <InviteBox pending={pending} /> : null}
       </Card>
 
       {/* Quick actions */}

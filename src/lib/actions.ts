@@ -6,13 +6,17 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { ROLE_LABEL, SPACE_ROLES } from "./defaults";
 import { eur, monthLabel } from "./money";
-import { parseRules } from "./settings";
 import { SPACE_COOKIE, USER_COOKIE, can, context } from "./session";
 import { membersOf } from "./store";
 import { supabase } from "./supabase/server";
 import {
+  acceptProposal,
+  applyProposalIfAccepted,
+  closeProposal,
   createAccountFromInvitation,
   createInvitation,
+  createProposal,
+  getAgreementState,
   getInvitationByToken,
   uploadReceipt,
   vendorId,
@@ -222,7 +226,7 @@ export async function acceptInvite(
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
   });
-  jar.set(SPACE_COOKIE, inv.label_id, { path: "/", maxAge: 60 * 60 * 24 * 365 });
+  jar.set(SPACE_COOKIE, created.labelId, { path: "/", maxAge: 60 * 60 * 24 * 365 });
   refresh();
   redirect("/");
 }
@@ -360,8 +364,8 @@ export async function saveTeam(
 }
 
 /**
- * Propose de nouveaux termes. Rien ne change tant que l'artiste et au moins
- * un manager n'ont pas accepté : la base refuse toute écriture directe.
+ * Propose une répartition. Rien ne change tant que l'artiste et au moins un
+ * manager ne l'ont pas acceptée.
  */
 export async function proposeTerms(
   _prev: ActionState,
@@ -369,85 +373,50 @@ export async function proposeTerms(
 ): Promise<ActionState> {
   const ctx = await context();
   if (!ctx) return fail("Session expirée. Reconnecte-toi.");
-  if (ctx.proposal) {
-    return fail("Une proposition est déjà en cours. Traite-la d'abord.");
-  }
-
-  const input: Record<string, string> = {};
-  for (const [k, v] of formData.entries()) input[k] = String(v);
+  const { pending } = await getAgreementState(ctx.label.id);
+  if (pending) return fail("Une proposition est déjà en cours. Traite-la d'abord.");
 
   const shares = ctx.members.map((m) => ({
-    kind: "member" as const,
-    id: m.userId,
-    role: (input[`role_${m.userId}`] as SpaceRole) ?? m.role,
-    share: Number(input[`share_${m.userId}`] ?? m.share),
+    userId: m.userId,
+    role: m.role,
+    pct: Number(text(formData, `share_${m.userId}`)),
   }));
+  if (shares.some((s) => !Number.isFinite(s.pct) || s.pct < 0 || s.pct > 100)) {
+    return fail("Chaque part va de 0 à 100 %.");
+  }
+  const total = Math.round(shares.reduce((t, s) => t + s.pct, 0) * 100) / 100;
+  if (total !== 100) return fail(`Le total fait ${total} % : il doit faire 100 %.`);
+  const artiste = shares.filter((s) => s.role === "artiste");
+  if (artiste.length && artiste.reduce((t, s) => t + s.pct, 0) < 50) {
+    return fail("L'artiste ne descend jamais sous 50 %.");
+  }
 
-  // Une seule définition des règles : celle que les tests couvrent.
-  const parsed = parseRules(
-    ctx.space.config,
-    shares.map((x) => ({
-      id: x.id,
-      role: x.role,
-      share: x.share,
-    })),
-    input,
-  );
-  if (!parsed.ok) return fail(parsed.error);
+  const recoupModel = text(formData, "recoupModel");
+  if (!["plancher", "brut", "part_label"].includes(recoupModel)) {
+    return fail("Choisis comment le label se rembourse.");
+  }
+  const floorPct = Number(text(formData, "floorPct") || 0);
+  if (!Number.isFinite(floorPct) || floorPct < 0 || floorPct > 100) {
+    return fail("Le minimum artiste va de 0 à 100 %.");
+  }
 
-  const c = parsed.config;
-  const terms = {
-    project_name: c.projectName,
-    contract_start: c.contractStart,
-    contract_end: c.contractEnd,
-    exit_window_days: c.exitWindowDays,
-    recoup_model: c.recoupModel,
-    floor_pct: c.floorPct,
-    validation_threshold: c.validationThreshold,
-    monthly_category_threshold: c.monthlyCategoryThreshold,
-    non_recoupable: c.nonRecoupable,
+  const created = await createProposal({
+    labelId: ctx.label.id,
+    userId: ctx.user.id,
+    projectName: ctx.label.name,
+    recoupModel,
+    floorPct,
     shares,
-  };
-
-  const sb = await supabase();
-  const created = await sb
-    .from("term_proposals")
-    .insert({
-      space_id: ctx.space.id,
-      proposed_by: ctx.user.id,
-      note: text(formData, "note"),
-      terms,
-    })
-    .select("id")
-    .single();
-  if (created.error) return fail(readable(created.error.message));
-
-  // Proposer, c'est déjà accepter.
-  await sb.from("proposal_votes").insert({
-    space_id: ctx.space.id,
-    proposal_id: created.data.id,
-    voter: ctx.user.id,
-    accept: true,
-    comment: "",
   });
+  if ("error" in created) return fail(created.error);
 
-  await writeLedger({
-    spaceId: ctx.space.id,
-    actor: ctx.user.id,
-    type: "reglages",
-    text: `Nouveaux termes proposés par ${ctx.user.name} — parts ${shares.map((x) => x.share).join("/")}`,
-    ref: created.data.id,
-  });
-
-  await tryApply(created.data.id);
+  const applied = await applyProposalIfAccepted(created.id, ctx.label.id);
   refresh();
-  return { notice: "Proposition envoyée. Elle s'applique dès que toi et un manager l'avez acceptée." };
-}
-
-/** Applique si les accords sont réunis. Sans effet sinon. */
-async function tryApply(proposalId: string) {
-  const sb = await supabase();
-  await sb.rpc("apply_proposal", { p: proposalId });
+  return {
+    notice: applied
+      ? "Accord en vigueur."
+      : "Proposition envoyée. Elle s'applique dès que l'artiste et un manager l'ont acceptée.",
+  };
 }
 
 export async function voteProposal(
@@ -458,38 +427,19 @@ export async function voteProposal(
   if (!ctx) return fail("Session expirée. Reconnecte-toi.");
   const id = text(formData, "id");
   const accept = text(formData, "accept") === "oui";
-  if (!ctx.proposal || ctx.proposal.id !== id) {
+  const { pending } = await getAgreementState(ctx.label.id);
+  if (!pending || pending.id !== id) {
     return fail("Cette proposition n'est plus en cours.");
   }
-  if (ctx.proposal.votes.some((v) => v.voter === ctx.user.id)) {
-    return fail("Tu t'es déjà prononcé.");
-  }
-
-  const sb = await supabase();
-  const { error } = await sb.from("proposal_votes").insert({
-    space_id: ctx.space.id,
-    proposal_id: id,
-    voter: ctx.user.id,
-    accept,
-    comment: text(formData, "comment"),
-  });
-  if (error) return fail(readable(error.message));
-
-  await writeLedger({
-    spaceId: ctx.space.id,
-    actor: ctx.user.id,
-    type: "reglages",
-    text: `${ctx.user.name} ${accept ? "accepte" : "refuse"} les termes proposés`,
-    ref: id,
-  });
+  const mine = pending.shares.find((s) => s.user_id === ctx.user.id);
+  if (!mine) return fail("Tu ne fais pas partie de cette proposition.");
+  if (mine.validated) return fail("Tu l'as déjà acceptée.");
 
   if (accept) {
-    await tryApply(id);
+    await acceptProposal(id, ctx.user.id);
+    await applyProposalIfAccepted(id, ctx.label.id);
   } else {
-    await sb
-      .from("term_proposals")
-      .update({ status: "refuse", resolved_at: new Date().toISOString() })
-      .eq("id", id);
+    await closeProposal(id);
   }
   refresh();
   return ok;
@@ -502,24 +452,12 @@ export async function withdrawProposal(
   const ctx = await context();
   if (!ctx) return fail("Session expirée. Reconnecte-toi.");
   const id = text(formData, "id");
-  if (!ctx.proposal || ctx.proposal.id !== id) return ok;
-  if (ctx.proposal.proposedBy !== ctx.user.id) {
+  const { pending } = await getAgreementState(ctx.label.id);
+  if (!pending || pending.id !== id) return ok;
+  if (pending.created_by !== ctx.user.id) {
     return fail("Seule la personne qui a proposé peut retirer sa proposition.");
   }
-  const sb = await supabase();
-  const { error } = await sb
-    .from("term_proposals")
-    .update({ status: "retire", resolved_at: new Date().toISOString() })
-    .eq("id", id);
-  if (error) return fail(readable(error.message));
-
-  await writeLedger({
-    spaceId: ctx.space.id,
-    actor: ctx.user.id,
-    type: "reglages",
-    text: `${ctx.user.name} retire sa proposition`,
-    ref: id,
-  });
+  await closeProposal(id);
   refresh();
   return ok;
 }

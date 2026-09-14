@@ -1,7 +1,6 @@
 // @ts-nocheck
 import Link from "next/link";
-import { ROLE_LABEL } from "@/lib/defaults";
-import { getInvitationByToken, getLabelById } from "@/lib/db";
+import { getInvitationByToken } from "@/lib/db";
 import { InvitationForm } from "./invitation-form";
 
 export default async function InvitationPage({
@@ -12,7 +11,6 @@ export default async function InvitationPage({
   const { token } = await params;
   const inv = await getInvitationByToken(token);
   const valid = inv && !inv.accepted_at && new Date(inv.expires_at) > new Date();
-  const label = valid ? await getLabelById(inv.label_id) : null;
 
   return (
     <main className="flex min-h-screen items-center justify-center px-6 py-12">
@@ -29,16 +27,16 @@ export default async function InvitationPage({
             N
           </div>
           <h1 className="text-2xl font-bold text-ink">
-            {label ? `Rejoins ${label.name}` : "Lien plus valable"}
+            {valid ? "Crée ton espace" : "Lien plus valable"}
           </h1>
           <p className="mt-1 text-sm text-muted">
-            {label
-              ? `Rôle : ${ROLE_LABEL[inv.role] ?? inv.role}. Choisis ton identifiant et ton code.`
+            {valid
+              ? "Choisis ton identifiant et ton code."
               : "Ce lien a déjà servi ou a expiré. Demande une nouvelle invitation."}
           </p>
         </div>
 
-        {label ? (
+        {valid ? (
           <InvitationForm token={token} name={inv.name} />
         ) : (
           <p className="text-center text-sm">

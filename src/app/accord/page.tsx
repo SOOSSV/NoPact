@@ -1,97 +1,95 @@
 // @ts-nocheck
 import { ActionForm } from "@/components/action-form";
 import { Card, Eyebrow, Field, PageHeader, Pill, Why } from "@/components/ui";
-import { ROLE_LABEL, SPACE_ROLES, initialsOf } from "@/lib/defaults";
-import { eur } from "@/lib/money";
+import { ROLE_LABEL } from "@/lib/defaults";
+import { getAgreementState } from "@/lib/db";
 import { requirePage } from "@/lib/guard";
-import { userName } from "@/lib/store";
-import type { SpaceRole } from "@/lib/types";
 
 const MODELS = [
   { id: "plancher", title: "Plancher artiste" },
   { id: "brut", title: "Sur le brut" },
   { id: "part_label", title: "Sur la part label" },
 ];
+const MODEL_LABEL = Object.fromEntries(MODELS.map((m) => [m.id, m.title]));
 
-const MODEL_LABEL: Record<string, string> = {
-  plancher: "Plancher artiste",
-  brut: "Sur le brut",
-  part_label: "Sur la part label",
-};
+const day = (d) =>
+  d
+    ? new Date(d).toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        timeZone: "Europe/Paris",
+      })
+    : "—";
 
 export default async function AccordPage() {
-  const { store, space, members, proposal, me, user } = await requirePage();
-  const cfg = space.config;
+  const { label, members, user } = await requirePage();
+  const { current, pending } = await getAgreementState(label.id);
 
-  const people = members.map((m) => ({
-    id: m.userId,
-    name: m.name,
-    role: m.role,
-    share: m.share,
-  }));
-  const total = Math.round(people.reduce((s, p) => s + p.share, 0) * 100) / 100;
-  const jamaisFixe = total === 0;
+  const nameOf = (id) => members.find((m) => m.userId === id)?.name ?? "Ancien membre";
+  const roleOf = (id) => members.find((m) => m.userId === id)?.role;
+  const shareOf = (agreement, id) => agreement?.shares.find((s) => s.user_id === id);
 
-  const monVote = proposal?.votes.find((v: any) => v.voter === user.id);
-  const roleDe = (id: string) => members.find((m) => m.userId === id)?.role;
-  const artisteOk = proposal?.votes.some(
-    (v: any) => v.accept && roleDe(v.voter) === "artiste",
-  );
-  const managerOk = proposal?.votes.some(
-    (v: any) => v.accept && roleDe(v.voter) === "manager",
-  );
+  const mine = shareOf(pending, user.id);
+  const needed = pending
+    ? ["artiste", "manager"].filter((r) => pending.shares.some((s) => roleOf(s.user_id) === r))
+    : [];
+  const acceptedBy = (r) => pending.shares.some((s) => s.validated && roleOf(s.user_id) === r);
 
   return (
     <>
       <PageHeader
-        eyebrow={`Accord · ${space.name}`}
+        eyebrow={`Accord · ${label.name}`}
         title="Ce qui a été convenu"
         sub="Personne ne change ces chiffres tout seul."
         action={
-          proposal ? (
+          pending ? (
             <Pill tone="warn">proposition en cours</Pill>
-          ) : jamaisFixe ? (
-            <Pill tone="warn">rien de convenu</Pill>
-          ) : (
+          ) : current ? (
             <Pill tone="ok">en vigueur</Pill>
+          ) : (
+            <Pill tone="warn">rien de convenu</Pill>
           )
         }
       />
 
-      {proposal ? (
+      {pending ? (
         <Card className="mb-5 border-warn/35 bg-warn-dim/25">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
-              <Eyebrow>Proposé par {userName(store, proposal.proposedBy)}</Eyebrow>
+              <Eyebrow>Proposé par {nameOf(pending.created_by)}</Eyebrow>
               <p className="text-lg font-semibold">
-                {eur(proposal.terms.investment)} d&apos;investissement ·{" "}
-                {MODEL_LABEL[proposal.terms.recoupModel] ?? proposal.terms.recoupModel}
+                {MODEL_LABEL[pending.recoup_model]}
+                {pending.recoup_model === "plancher"
+                  ? ` · ${Number(pending.floor_pct)} % minimum artiste`
+                  : ""}
               </p>
-              {proposal.note ? (
-                <p className="text-sm text-ink-2">« {proposal.note} »</p>
-              ) : null}
             </div>
 
-            <ul className="flex flex-col gap-1.5 border-t border-warn/20 pt-3">
-              {proposal.terms.shares.map((s) => {
-                const avant = people.find((p) => p.id === s.id);
-                const change = (avant?.share ?? 0) !== s.share;
+            <ul className="flex flex-col gap-2 border-t border-warn/20 pt-3">
+              {pending.shares.map((s) => {
+                const before = shareOf(current, s.user_id);
+                const pct = Number(s.proposed_pct);
+                const changed = before && Number(before.proposed_pct) !== pct;
                 return (
-                  <li key={s.id} className="flex items-center gap-3 text-sm">
-                    <span className="w-40 truncate">{avant?.name ?? "—"}</span>
-                    <span className="font-mono text-[10px] uppercase text-muted">
-                      {ROLE_LABEL[s.role as SpaceRole]}
+                  <li key={s.user_id} className="flex items-center gap-3 text-sm">
+                    <span className="min-w-0 flex-1 truncate">
+                      {nameOf(s.user_id)}
+                      <span className="ml-2 font-mono text-[10px] uppercase text-muted">
+                        {ROLE_LABEL[roleOf(s.user_id)] ?? ""}
+                      </span>
                     </span>
-                    <span className="tnum ml-auto">
-                      {change ? (
+                    <span className={`font-mono text-[10px] ${s.validated ? "text-ok" : "text-muted"}`}>
+                      {s.validated ? "accepte" : "en attente"}
+                    </span>
+                    <span className="tnum w-24 text-right">
+                      {changed ? (
                         <>
-                          <span className="text-muted line-through">
-                            {avant?.share ?? 0} %
-                          </span>
-                          <span className="ml-2 text-warn">{s.share} %</span>
+                          <span className="text-muted line-through">{Number(before.proposed_pct)} %</span>{" "}
+                          <span className="text-warn">{pct} %</span>
                         </>
                       ) : (
-                        <span className="text-muted">{s.share} %</span>
+                        `${pct} %`
                       )}
                     </span>
                   </li>
@@ -99,54 +97,28 @@ export default async function AccordPage() {
               })}
             </ul>
 
-            <div className="flex flex-wrap items-center gap-4 border-t border-warn/20 pt-3">
-              <span className="font-mono text-[11px] text-muted">
-                Artiste {artisteOk ? "✓" : "○"} · Manager {managerOk ? "✓" : "○"}
-              </span>
-              {proposal.votes.map((v) => (
-                <span key={v.voter} className="flex items-center gap-1.5">
-                  <span className="grid h-5 w-5 place-items-center rounded bg-raised font-mono text-[9px] text-muted">
-                    {initialsOf(userName(store, v.voter))}
-                  </span>
-                  <span
-                    className={`font-mono text-[10px] ${v.accept ? "text-ok" : "text-alert"}`}
-                  >
-                    {v.accept ? "accepte" : "refuse"}
-                  </span>
-                </span>
-              ))}
-            </div>
+            <p className="border-t border-warn/20 pt-3 font-mono text-[11px] text-muted">
+              Il faut l&apos;accord : {needed.map((r) => `${ROLE_LABEL[r]} ${acceptedBy(r) ? "✓" : "○"}`).join(" · ")}
+            </p>
 
-            {!monVote ? (
-              <div className="flex flex-wrap gap-3 border-t border-warn/20 pt-3">
+            {mine && !mine.validated ? (
+              <div className="flex flex-wrap gap-3">
                 <ActionForm action="voteProposal" className="flex" submit="Accepter">
-                  <input type="hidden" name="id" value={proposal.id} />
+                  <input type="hidden" name="id" value={pending.id} />
                   <input type="hidden" name="accept" value="oui" />
                 </ActionForm>
-                <ActionForm
-                  action="voteProposal"
-                  className="flex"
-                  submit="Refuser"
-                  variant="ghost"
-                >
-                  <input type="hidden" name="id" value={proposal.id} />
+                <ActionForm action="voteProposal" className="flex" submit="Refuser" variant="ghost">
+                  <input type="hidden" name="id" value={pending.id} />
                   <input type="hidden" name="accept" value="non" />
                 </ActionForm>
               </div>
-            ) : (
-              <p className="border-t border-warn/20 pt-3 text-sm text-ink-2">
-                Tu as {monVote.accept ? "accepté" : "refusé"}. En attente des autres.
-              </p>
-            )}
+            ) : mine ? (
+              <p className="text-sm text-ink-2">Tu as accepté. En attente des autres.</p>
+            ) : null}
 
-            {proposal.proposedBy === user.id ? (
-              <ActionForm
-                action="withdrawProposal"
-                className="flex"
-                submit="Retirer ma proposition"
-                variant="ghost"
-              >
-                <input type="hidden" name="id" value={proposal.id} />
+            {pending.created_by === user.id ? (
+              <ActionForm action="withdrawProposal" className="flex" submit="Retirer ma proposition" variant="ghost">
+                <input type="hidden" name="id" value={pending.id} />
               </ActionForm>
             ) : null}
           </div>
@@ -157,113 +129,84 @@ export default async function AccordPage() {
         <div className="mb-4 flex items-center justify-between gap-3">
           <Eyebrow>En vigueur</Eyebrow>
           <Why>
-            Une modification n&apos;entre en vigueur que si l&apos;artiste et au
-            moins un manager l&apos;acceptent. Ce n&apos;est pas une règle
-            d&apos;affichage : la base refuse toute écriture directe sur ces
-            chiffres.
+            Une modification ne s&apos;applique que si l&apos;artiste et au moins un
+            manager l&apos;acceptent.
           </Why>
         </div>
 
-        {jamaisFixe ? (
-          <p className="text-sm text-muted">
-            Rien n&apos;a encore été convenu. Propose des termes ci-dessous.
-          </p>
-        ) : (
+        {current ? (
           <div className="grid gap-5 sm:grid-cols-2">
             <ul className="flex flex-col divide-y divide-line">
-              {people.map((p) => (
-                <li
-                  key={p.id}
-                  className="flex items-center justify-between gap-3 py-2.5 first:pt-0"
-                >
+              {current.shares.map((s) => (
+                <li key={s.user_id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0">
                   <span className="text-sm">
-                    {p.name}
+                    {nameOf(s.user_id)}
                     <span className="ml-2 font-mono text-[10px] uppercase text-muted">
-                      {ROLE_LABEL[p.role]}
+                      {ROLE_LABEL[roleOf(s.user_id)] ?? ""}
                     </span>
                   </span>
-                  <span className="tnum text-sm">{p.share} %</span>
+                  <span className="tnum text-sm">{Number(s.proposed_pct)} %</span>
                 </li>
               ))}
             </ul>
             <dl className="flex flex-col gap-2.5 text-sm">
               <div className="flex justify-between gap-3">
-                <dt className="text-muted">Investissement</dt>
-                <dd className="tnum">{eur(cfg.investment)}</dd>
-              </div>
-              <div className="flex justify-between gap-3">
                 <dt className="text-muted">Remboursement</dt>
-                <dd>{MODEL_LABEL[cfg.recoupModel]}</dd>
+                <dd>{MODEL_LABEL[current.recoup_model]}</dd>
               </div>
+              {current.recoup_model === "plancher" ? (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted">Minimum artiste</dt>
+                  <dd className="tnum">{Number(current.floor_pct)} %</dd>
+                </div>
+              ) : null}
               <div className="flex justify-between gap-3">
-                <dt className="text-muted">Plancher artiste</dt>
-                <dd className="tnum">{cfg.floorPct} %</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted">Validation dès</dt>
-                <dd className="tnum">{eur(cfg.validationThreshold)}</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted">À la charge du label</dt>
-                <dd className="text-right">
-                  {cfg.nonRecoupable.length
-                    ? cfg.nonRecoupable.join(", ")
-                    : "rien — tout se rembourse"}
-                </dd>
+                <dt className="text-muted">Depuis le</dt>
+                <dd>{day(current.signed_at)}</dd>
               </div>
             </dl>
           </div>
+        ) : (
+          <p className="text-sm text-muted">Rien n&apos;a encore été convenu.</p>
         )}
       </Card>
 
-      {!proposal ? (
+      {!pending ? (
         <Card>
-          <Eyebrow>Proposer de nouveaux termes</Eyebrow>
-          <p className="mt-2 mb-5 max-w-2xl text-sm text-ink-2">
-            Rien ne bouge tant que{" "}
-            {me.role === "artiste" ? "un manager n'a" : "l'artiste et un manager n'ont"}{" "}
-            pas accepté.
+          <Eyebrow>Proposer une répartition</Eyebrow>
+          <p className="mt-2 mb-5 text-sm text-ink-2">
+            Total 100 %, et l&apos;artiste jamais sous 50 %.
           </p>
           <ActionForm action="proposeTerms" submit="Envoyer la proposition">
-            {/* 1. L'essentiel : qui touche quoi. */}
             <div className="flex flex-col gap-3">
-              {people.map((p) => (
-                <div
-                  key={p.id}
-                  className="grid items-center gap-3 sm:grid-cols-[1fr_160px_120px]"
-                >
-                  <span className="text-[15px]">{p.name}</span>
-                  <select name={`role_${p.id}`} defaultValue={p.role}>
-                    {SPACE_ROLES.map((r) => (
-                      <option key={r} value={r}>
-                        {ROLE_LABEL[r]}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="flex items-center gap-2">
+              {members.map((m) => (
+                <div key={m.userId} className="flex items-center gap-3">
+                  <span className="min-w-0 flex-1 truncate text-[15px]">
+                    {m.name}
+                    <span className="ml-2 font-mono text-[10px] uppercase text-muted">
+                      {ROLE_LABEL[m.role]}
+                    </span>
+                  </span>
+                  <div className="flex w-28 items-center gap-2">
                     <input
-                      name={`share_${p.id}`}
+                      name={`share_${m.userId}`}
                       type="number"
+                      inputMode="decimal"
                       min="0"
                       max="100"
                       step="0.5"
-                      defaultValue={p.share}
+                      defaultValue={Number(shareOf(current, m.userId)?.proposed_pct ?? (members.length === 1 ? 100 : 0))}
                       required
                     />
                     <span className="font-mono text-sm text-muted">%</span>
                   </div>
                 </div>
               ))}
-              <p className="text-xs text-faint">
-                Total actuel {total} % — il doit faire 100 %, et l&apos;artiste
-                jamais moins de 50 %.
-              </p>
             </div>
 
-            {/* 2. L'argent du label. */}
             <div className="grid gap-4 border-t border-line pt-5 sm:grid-cols-2">
-              <Field label="Il se rembourse">
-                <select name="recoupModel" defaultValue={cfg.recoupModel}>
+              <Field label="Le label se rembourse">
+                <select name="recoupModel" defaultValue={current?.recoup_model ?? "plancher"}>
                   {MODELS.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.title}
@@ -271,23 +214,17 @@ export default async function AccordPage() {
                   ))}
                 </select>
               </Field>
-              <Field label="Tu touches au minimum (%)">
+              <Field label="Minimum artiste (%)">
                 <input
                   name="floorPct"
                   type="number"
+                  inputMode="decimal"
                   min="0"
                   max="100"
-                  defaultValue={cfg.floorPct}
+                  defaultValue={Number(current?.floor_pct ?? 50)}
                 />
               </Field>
             </div>
-
-            {/* Les seuils, les catégories et les dates ne sont pas ici :
-                les valeurs en place sont conservées telles quelles. */}
-
-            <Field label="Pourquoi ce changement">
-              <input name="note" placeholder="Une phrase pour les autres" />
-            </Field>
           </ActionForm>
         </Card>
       ) : null}

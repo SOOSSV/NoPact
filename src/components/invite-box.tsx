@@ -8,10 +8,10 @@ import { Alert, Button, Field } from "@/components/ui";
 
 type Pending = { id: string; name: string; role: string; token: string };
 
-function ShareButtons({ name, token, labelName }: { name: string; token: string; labelName: string }) {
+function ShareButtons({ name, token }: { name: string; token: string }) {
   const [copied, setCopied] = useState(false);
   const link = () => `${window.location.origin}/invitation/${token}`;
-  const message = () => `Salut ${name}, rejoins ${labelName} sur NoPact : ${link()}`;
+  const message = () => `Salut ${name}, voici ton accès NoPact : ${link()}`;
 
   const copy = async () => {
     try {
@@ -45,7 +45,7 @@ function ShareButtons({ name, token, labelName }: { name: string; token: string;
   );
 }
 
-export function InviteBox({ pending, labelName }: { pending: Pending[]; labelName: string }) {
+export function InviteBox({ pending }: { pending: Pending[] }) {
   const [open, setOpen] = useState(false);
   const [state, action, busy] = useActionState<ActionState, FormData>(inviteMember, null);
   const fresh = state?.invite;
@@ -63,7 +63,7 @@ export function InviteBox({ pending, labelName }: { pending: Pending[]; labelNam
           <p className="text-sm text-ok">
             Lien prêt pour {fresh.name}. Envoie-le : il suffit de l&apos;ouvrir pour choisir son identifiant et son code.
           </p>
-          <ShareButtons name={fresh.name} token={fresh.token} labelName={labelName} />
+          <ShareButtons name={fresh.name} token={fresh.token} />
         </div>
       ) : null}
 
@@ -76,7 +76,7 @@ export function InviteBox({ pending, labelName }: { pending: Pending[]; labelNam
                 <p className="text-sm font-semibold">{p.name}</p>
                 <p className="text-xs text-muted">{ROLE_LABEL[p.role] ?? p.role} · pas encore inscrit</p>
               </div>
-              <ShareButtons name={p.name} token={p.token} labelName={labelName} />
+              <ShareButtons name={p.name} token={p.token} />
             </div>
           ))}
         </div>

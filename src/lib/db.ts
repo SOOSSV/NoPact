@@ -221,7 +221,7 @@ export async function createAccountFromInvitation(
   handle: string,
   name: string,
   code: string,
-): Promise<{ id: string } | { error: string }> {
+): Promise<{ id: string; labelId: string } | { error: string }> {
   const db = await supabase();
   const claimed = await db
     .from("invitations")
@@ -250,19 +250,31 @@ export async function createAccountFromInvitation(
   }
 
   const id = login.data.id;
-  const profile = await db.from("app_users").insert({ id, handle, name });
-  const member = profile.error
-    ? null
-    : await db
-        .from("memberships")
-        .insert({ label_id: inv.label_id, user_id: id, role: inv.role });
-  if (profile.error || member?.error) {
+  const undo = async (labelId?: string) => {
+    if (labelId) await db.from("labels").delete().eq("id", labelId);
     await db.from("app_users").delete().eq("id", id);
     await db.from("login_users").delete().eq("id", id);
     await release();
     return { error: "Impossible de créer le compte. Réessaie." };
-  }
-  return { id };
+  };
+
+  const profile = await db.from("app_users").insert({ id, handle, name });
+  if (profile.error) return undo();
+
+  // La personne invitée arrive dans son propre espace, jamais dans celui de l'invitant.
+  const space = await db
+    .from("labels")
+    .insert({ name, slug: `${handle}-${crypto.randomUUID().slice(0, 8)}`, created_by: id })
+    .select("id")
+    .single();
+  if (space.error) return undo();
+
+  const member = await db
+    .from("memberships")
+    .insert({ label_id: space.data.id, user_id: id, role: inv.role });
+  if (member.error) return undo(space.data.id);
+
+  return { id, labelId: space.data.id };
 }
 
 // ============================================================================
@@ -387,6 +399,128 @@ export async function validateShares(agreementId: string): Promise<void> {
     .update({ validated: true, validated_at: now })
     .eq("agreement_id", agreementId)
     .eq("validated", false);
+}
+
+const AGREEMENT_FIELDS =
+  "id, project_name, status, recoup_model, floor_pct, created_by, created_at, signed_at, shares(user_id, proposed_pct, validated, validated_at)";
+
+/** L'accord en vigueur et la proposition en cours, avec leurs parts. */
+export async function getAgreementState(labelId: string) {
+  const db = await supabase();
+  const { data, error } = await db
+    .from("agreements")
+    .select(AGREEMENT_FIELDS)
+    .eq("label_id", labelId)
+    .in("status", ["validee", "en_attente"]);
+  if (error) throw new Error(error.message);
+  const byShare = (a: any) =>
+    a && { ...a, shares: [...a.shares].sort((x, y) => Number(y.proposed_pct) - Number(x.proposed_pct)) };
+  return {
+    current: byShare(data.find((a) => a.status === "validee")) ?? null,
+    pending: byShare(data.find((a) => a.status === "en_attente")) ?? null,
+  };
+}
+
+export async function createProposal(p: {
+  labelId: string;
+  userId: string;
+  projectName: string;
+  recoupModel: string;
+  floorPct: number;
+  shares: { userId: string; pct: number }[];
+}): Promise<{ id: string } | { error: string }> {
+  const db = await supabase();
+  const created = await db
+    .from("agreements")
+    .insert({
+      label_id: p.labelId,
+      project_name: p.projectName,
+      status: "en_attente",
+      recoup_model: p.recoupModel,
+      floor_pct: p.floorPct,
+      created_by: p.userId,
+    })
+    .select("id")
+    .single();
+  if (created.error) {
+    return {
+      error: created.error.code === "23505"
+        ? "Une proposition est déjà en cours."
+        : "Impossible d'enregistrer la proposition.",
+    };
+  }
+
+  // Proposer, c'est déjà accepter.
+  const now = new Date().toISOString();
+  const shares = await db.from("shares").insert(
+    p.shares.map((s) => ({
+      agreement_id: created.data.id,
+      user_id: s.userId,
+      proposed_pct: s.pct,
+      validated: s.userId === p.userId,
+      validated_at: s.userId === p.userId ? now : null,
+    })),
+  );
+  if (shares.error) {
+    await db.from("agreements").delete().eq("id", created.data.id);
+    return { error: "Impossible d'enregistrer la proposition." };
+  }
+  return { id: created.data.id };
+}
+
+export async function acceptProposal(agreementId: string, userId: string) {
+  const db = await supabase();
+  const { error } = await db
+    .from("shares")
+    .update({ validated: true, validated_at: new Date().toISOString() })
+    .eq("agreement_id", agreementId)
+    .eq("user_id", userId);
+  if (error) throw new Error(error.message);
+}
+
+export async function closeProposal(agreementId: string) {
+  const db = await supabase();
+  const { error } = await db
+    .from("agreements")
+    .update({ status: "archivee" })
+    .eq("id", agreementId)
+    .eq("status", "en_attente");
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * S'applique quand l'artiste et au moins un manager ont accepté. Un rôle
+ * absent de la proposition n'est pas attendu.
+ */
+export async function applyProposalIfAccepted(agreementId: string, labelId: string) {
+  const db = await supabase();
+  const [{ data: shares, error }, members] = await Promise.all([
+    db.from("shares").select("user_id, validated").eq("agreement_id", agreementId),
+    getLabelMembers(labelId),
+  ]);
+  if (error) throw new Error(error.message);
+
+  const roleOf = (id: string) => members.find((m) => m.userId === id)?.role;
+  for (const role of ["artiste", "manager"]) {
+    const inProposal = shares.some((s) => roleOf(s.user_id) === role);
+    const accepted = shares.some((s) => s.validated && roleOf(s.user_id) === role);
+    if (inProposal && !accepted) return false;
+  }
+  if (!shares.some((s) => s.validated)) return false;
+
+  const archived = await db
+    .from("agreements")
+    .update({ status: "archivee" })
+    .eq("label_id", labelId)
+    .eq("status", "validee");
+  if (archived.error) throw new Error(archived.error.message);
+  const applied = await db
+    .from("agreements")
+    .update({ status: "validee", signed_at: new Date().toISOString() })
+    .eq("id", agreementId)
+    .eq("status", "en_attente");
+  if (applied.error) throw new Error(applied.error.message);
+  return true;
 }
 
 // ============================================================================
