@@ -4,13 +4,21 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { ROLE_LABEL } from "./defaults";
+import { ROLE_LABEL, SPACE_ROLES } from "./defaults";
 import { eur, monthLabel } from "./money";
 import { parseRules } from "./settings";
 import { SPACE_COOKIE, USER_COOKIE, can, context } from "./session";
 import { membersOf } from "./store";
 import { supabase } from "./supabase/server";
-import { uploadReceipt, vendorId, verifyChainDb, writeLedger } from "./db";
+import {
+  createAccountFromInvitation,
+  createInvitation,
+  getInvitationByToken,
+  uploadReceipt,
+  vendorId,
+  verifyChainDb,
+  writeLedger,
+} from "./db";
 import { lireFacture, type ReadReceipt } from "./ocr";
 import type { ExpenseCategory, SpaceRole } from "./types";
 
@@ -23,6 +31,8 @@ export type ActionState = {
   notice?: string;
   /** Ce que la lecture de la facture a trouvé, à confirmer par la personne. */
   lecture?: ReadReceipt;
+  /** Invitation tout juste créée : le lien s'affiche pour être envoyé. */
+  invite?: { name: string; token: string };
 } | null;
 
 const ok: ActionState = null;
@@ -155,6 +165,66 @@ export async function signOut() {
   jar.delete(SPACE_COOKIE);
   refresh();
   redirect("/connexion");
+}
+
+/** Crée un lien d'invitation : la personne choisit elle-même son identifiant et son code. */
+export async function inviteMember(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const ctx = await context();
+  if (!ctx) return fail("Session expirée. Reconnecte-toi.");
+  if (!can.manageRules(ctx.me.role)) {
+    return fail("Seuls l'artiste et les managers invitent quelqu'un.");
+  }
+
+  const name = text(formData, "name");
+  const role = text(formData, "role") as SpaceRole;
+  if (!name) return fail("Indique le nom de la personne.");
+  if (!SPACE_ROLES.includes(role)) return fail("Choisis un rôle.");
+
+  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  try {
+    const inv = await createInvitation(ctx.label.id, "", name, role, expires);
+    refresh();
+    return { invite: { name, token: inv.token } };
+  } catch {
+    return fail("Impossible de créer l'invitation. Réessaie.");
+  }
+}
+
+export async function acceptInvite(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const token = text(formData, "token");
+  const name = text(formData, "name");
+  const handle = text(formData, "handle").toLowerCase();
+  const code = text(formData, "code");
+  if (!name) return fail("Indique ton nom.");
+  if (!/^[a-z0-9._-]{3,32}$/.test(handle)) {
+    return fail("Identifiant : 3 à 32 caractères, lettres, chiffres, . _ -");
+  }
+  if (!/^\d{6}$/.test(code)) return fail("Le code fait exactement 6 chiffres.");
+
+  const inv = await getInvitationByToken(token);
+  if (!inv || inv.accepted_at || new Date(inv.expires_at) < new Date()) {
+    return fail("Ce lien n'est plus valable. Demande une nouvelle invitation.");
+  }
+
+  const created = await createAccountFromInvitation(inv, handle, name, code);
+  if ("error" in created) return fail(created.error);
+
+  const jar = await cookies();
+  jar.set(USER_COOKIE, created.id, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+  });
+  jar.set(SPACE_COOKIE, inv.label_id, { path: "/", maxAge: 60 * 60 * 24 * 365 });
+  refresh();
+  redirect("/");
 }
 
 // --- espaces -----------------------------------------------------------------

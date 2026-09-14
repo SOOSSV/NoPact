@@ -203,6 +203,68 @@ export async function acceptInvitation(
   await addMember(inv.data.label_id, userId, inv.data.role);
 }
 
+export async function getPendingInvitations(labelId: string) {
+  const db = await supabase();
+  const { data } = await db
+    .from("invitations")
+    .select("id, name, role, token, expires_at")
+    .eq("label_id", labelId)
+    .is("accepted_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false });
+  return data || [];
+}
+
+/** L'invitation est réservée avant d'écrire : un même lien ne crée jamais deux comptes. */
+export async function createAccountFromInvitation(
+  inv: any,
+  handle: string,
+  name: string,
+  code: string,
+): Promise<{ id: string } | { error: string }> {
+  const db = await supabase();
+  const claimed = await db
+    .from("invitations")
+    .update({ accepted_at: new Date().toISOString() })
+    .eq("id", inv.id)
+    .is("accepted_at", null)
+    .select("id");
+  if (claimed.error || !claimed.data?.length) {
+    return { error: "Ce lien a déjà été utilisé." };
+  }
+  const release = () =>
+    db.from("invitations").update({ accepted_at: null }).eq("id", inv.id);
+
+  const login = await db
+    .from("login_users")
+    .insert({ username: handle, password: code })
+    .select("id")
+    .single();
+  if (login.error) {
+    await release();
+    return {
+      error: login.error.code === "23505"
+        ? "Cet identifiant est déjà pris."
+        : "Impossible de créer le compte. Réessaie.",
+    };
+  }
+
+  const id = login.data.id;
+  const profile = await db.from("app_users").insert({ id, handle, name });
+  const member = profile.error
+    ? null
+    : await db
+        .from("memberships")
+        .insert({ label_id: inv.label_id, user_id: id, role: inv.role });
+  if (profile.error || member?.error) {
+    await db.from("app_users").delete().eq("id", id);
+    await db.from("login_users").delete().eq("id", id);
+    await release();
+    return { error: "Impossible de créer le compte. Réessaie." };
+  }
+  return { id };
+}
+
 // ============================================================================
 // AGREEMENTS
 // ============================================================================

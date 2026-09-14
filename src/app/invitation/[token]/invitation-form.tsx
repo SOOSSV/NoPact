@@ -1,28 +1,35 @@
 // @ts-nocheck
 "use client";
 
-import { useState } from "react";
-import { useActionState } from "react";
-import { signIn, type ActionState } from "@/lib/actions";
+import { useActionState, useState } from "react";
+import { acceptInvite, type ActionState } from "@/lib/actions";
 import { Alert, Button, Card, Field } from "@/components/ui";
 
-export function ConnexionForm() {
-  const [showCode, setShowCode] = useState(false);
-  const [state, action, pending] = useActionState<ActionState, FormData>(
-    signIn,
-    null,
-  );
+export function InvitationForm({ token, name }: { token: string; name: string }) {
+  const [fullName, setFullName] = useState(name);
+  const [handle, setHandle] = useState("");
+  const [code, setCode] = useState("");
+  const [showCode, setShowCode] = useState(true);
+  const [state, action, pending] = useActionState<ActionState, FormData>(acceptInvite, null);
 
   return (
     <Card className="space-y-5">
       <form action={action} className="space-y-5">
+        <input type="hidden" name="token" value={token} />
+
+        <Field label="Ton nom">
+          <input name="name" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+        </Field>
+
         <Field label="Identifiant">
           <input
             name="handle"
-            placeholder="soossv"
+            value={handle}
+            onChange={(e) => setHandle(e.target.value)}
+            placeholder="ryan"
             autoCapitalize="none"
             autoCorrect="off"
-            autoFocus
+            autoComplete="username"
             required
           />
         </Field>
@@ -30,11 +37,14 @@ export function ConnexionForm() {
         <Field label="Code (6 chiffres)">
           <div className="relative">
             <input
-              name="password"
+              name="code"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
               type={showCode ? "text" : "password"}
               inputMode="numeric"
+              autoComplete="new-password"
               placeholder={showCode ? "123456" : "••••••"}
-              maxLength="6"
+              maxLength={6}
               pattern="\d{6}"
               required
               className="w-full text-center text-[22px] font-bold tracking-[0.5em]"
@@ -60,24 +70,14 @@ export function ConnexionForm() {
           </div>
         </Field>
 
-        {state?.error && (
-          <div
-            className="rounded-lg border px-4 py-3 text-sm"
-            style={{
-              background: "rgba(220,38,38,0.08)",
-              borderColor: "rgba(220,38,38,0.3)",
-              color: "#991B1B",
-            }}
-          >
-            {state.error}
-          </div>
-        )}
+        <p className="text-xs text-muted">Retiens-les : ce sont eux qui te serviront à te connecter.</p>
 
-        <Button type="submit" disabled={pending} className="w-full">
-          {pending ? "Connexion…" : "Se connecter"}
+        {state?.error ? <Alert>{state.error}</Alert> : null}
+
+        <Button type="submit" disabled={pending}>
+          {pending ? "Création…" : "Créer mon accès"}
         </Button>
       </form>
     </Card>
   );
 }
-

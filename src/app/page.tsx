@@ -1,7 +1,9 @@
 // @ts-nocheck
 import { Card, Eyebrow, PageHeader, Stat } from "@/components/ui";
 import { Landing } from "@/components/landing";
-import { context, currentUser } from "@/lib/session";
+import { InviteBox } from "@/components/invite-box";
+import { getPendingInvitations } from "@/lib/db";
+import { can, context, currentUser } from "@/lib/session";
 import { redirect } from "next/navigation";
 
 export default async function Dashboard() {
@@ -16,6 +18,8 @@ export default async function Dashboard() {
   }
 
   const { space, members } = ctx;
+  const canInvite = can.manageRules(ctx.me.role);
+  const pending = canInvite ? await getPendingInvitations(space.id) : [];
 
   return (
     <>
@@ -53,6 +57,7 @@ export default async function Dashboard() {
             </div>
           ))}
         </div>
+        {canInvite ? <InviteBox pending={pending} labelName={space.name} /> : null}
       </Card>
 
       {/* Quick actions */}
