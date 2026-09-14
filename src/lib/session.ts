@@ -70,6 +70,8 @@ export async function context(): Promise<Context | null> {
   return {
     user,
     label,
+    space: label,
+    spaces: [label],
     members,
     me,
   };

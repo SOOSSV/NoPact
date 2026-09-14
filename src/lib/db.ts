@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { supabase } from "./supabase/server";
+import { createClient } from "@supabase/supabase-js";
 import type {
   User,
   Label,
@@ -10,6 +10,14 @@ import type {
   MembershipView,
   ShareView,
 } from "./types";
+
+// Clé secrète côté serveur : les tables ont la RLS sans règle publique.
+const admin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false } },
+);
+const supabase = async () => admin;
 
 // ============================================================================
 // USERS
@@ -94,7 +102,7 @@ export async function getLabelMembers(labelId: string): Promise<MembershipView[]
     .select(
       `
       id, label_id, user_id, role, joined_at,
-      users!inner(id, name, email, handle)
+      app_users!inner(id, name, email, handle)
     `
     )
     .eq("label_id", labelId);
@@ -105,9 +113,9 @@ export async function getLabelMembers(labelId: string): Promise<MembershipView[]
     userId: m.user_id,
     role: m.role,
     joinedAt: m.joined_at,
-    name: m.users.name,
-    email: m.users.email,
-    handle: m.users.handle,
+    name: m.app_users.name,
+    email: m.app_users.email,
+    handle: m.app_users.handle,
     share: 0,
   }));
 }
@@ -235,7 +243,7 @@ export async function getAgreementShares(agreementId: string): Promise<ShareView
     .select(
       `
       id, agreement_id, user_id, proposed_pct, validated, validated_at, created_at,
-      users!inner(id, name, email, handle),
+      app_users!inner(id, name, email, handle),
       agreements!inner(label_id)
     `
     )
@@ -255,9 +263,9 @@ export async function getAgreementShares(agreementId: string): Promise<ShareView
       validated: s.validated,
       validatedAt: s.validated_at,
       createdAt: s.created_at,
-      name: s.users.name,
-      email: s.users.email,
-      handle: s.users.handle,
+      name: s.app_users.name,
+      email: s.app_users.email,
+      handle: s.app_users.handle,
       role: (membership?.role as any) || "manager",
     });
   }
