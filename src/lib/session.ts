@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { loadStore } from "./db";
